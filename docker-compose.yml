@@ -1,0 +1,54 @@
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: erp_premium
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password_123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_premium"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: node:18
+    working_dir: /app
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://erp_user:erp_password_123@postgres:5432/erp_premium
+      JWT_SECRET: meu_super_segredo_jwt_123
+      JWT_REFRESH_SECRET: meu_refresh_segredo_123
+      NODE_ENV: development
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "npm install && npm run dev"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: node:18
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    volumes:
+      - ./frontend:/app
+    command: >
+      sh -c "npm install && npm run dev"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
